@@ -94,10 +94,10 @@ import time
 
 global_data = threading.local()
 
-# threading.local() 代码要阅读       
+# threading.local() 代码要阅读     为每一个线程增加一个dict 保存数据
 def worker():
-    #x=0
-    #global x #gloabl 在多线程中国 使用局部变量 那是绝对的安全 因为运行在每一个线程中栈
+    #x=0 #  在多线程中国 使用局部变量 那是绝对的安全 因为运行在每一个线程中栈
+    #global x #gloabl
     global_data = 0
 
     for i in range(100):
