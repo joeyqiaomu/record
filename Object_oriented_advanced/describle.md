@@ -129,3 +129,128 @@ Process finished with exit code 0
 - 仅实现了 __get__ [______get____],就是**非数据描述符** __non-data descriptor__
 - 实现了 __get__  [______get____]、 __set__ [______set____] **就是数据描述符** __data descriptor__
 - 如果一个类的类属性设置为描述器实例,那么它被称为owner属主。当该类的该类属性被查找、设置、删除时,就会调用描述器相应的方法。
+
+
+
+## **描述器应用**
+
+```python
+from _functools import partial,wraps,update_wrapper
+
+
+class StaticMethod:
+
+    def __init__(self,fn):
+        self.fn = fn
+
+    def __get__(self, instance, owner):
+        print(self,instance,owner)
+        return self.fn
+
+
+class ClassMethod:
+
+    def __init__(self,fn):
+        self.fn = fn
+
+    def __get__(self, instance, owner):
+        print(self,instance,owner)
+        newfunction = partial(self.fn, owner)
+        return newfunction
+
+class A:
+
+    @StaticMethod
+    def smtd(x,y):#smtd = StaticMethod(smtd)
+        """ smtd """
+        print("staitc method ++++++++++++++++")
+
+    @ClassMethod
+    def foo(cls,x,y):#foo = classmethod(foo):
+        """ cls +++++++++++++++++"""
+        print("class method ++++++++++++++++",cls.__name__,x,y)
+
+A.foo(10,15)
+#
+# a.smtd(4,5)
+# print(a.smtd.__name__)
+```
+
+## **类属性检查**
+```python
+import inspect
+
+class TypeCheck:
+
+    def __init__(self,name,typ):
+        self.typ = typ
+        self.name = name
+
+    def __get__(self, instance, owner):
+        print("get ~~~~~~~~~~~~~~~~~~~")
+        if instance:
+            return instance.__dict__[self.name]
+        else:
+            raise Exception
+
+    def __set_name__(self, owner, name):
+        print("setname =============================================")
+        self.name = name
+
+    def __set__(self, instance, value):
+        print("set----------",self,instance,value)
+        if instance:
+            if isinstance(value,self.typ):
+                instance.__dict__[self.name]=value
+            else:
+                raise TypeError(self.name)
+        return
+
+'''
+装饰器：函数的装饰器，
+'''
+def datainject(cls):
+    sig = inspect.signature(cls)
+    params = sig.parameters
+    for name,param in params.items():
+        print(name,param.name,param.kind,param.default,param.annotation)
+        if param.annotation != param.empty:#inspect._empty:
+            setattr(cls, name, TypeCheck(name,param.annotation))
+    return cls
+
+'''
+装饰器：类的装饰器
+'''
+class DataInject:
+    def __init__(self,cls):
+        self.cls = cls
+        sig = inspect.signature(self.cls)
+        params = sig.parameters
+        for name, param in params.items():
+            print(name, param.name, param.kind, param.default, param.annotation)
+            if param.annotation != param.empty:  # inspect._empty:
+                setattr(self.cls, name, TypeCheck(name, param.annotation))
+
+    def __call__(self, *args, **kwargs):
+        return self.cls(*args,**kwargs)
+
+@DataInject
+class Persion:#Persion=DataInject(Persion)
+    # name = TypeCheck(str) # 硬编码
+    # age =  TypeCheck(int) # 硬编码
+
+    def __init__(self, name:str, age:int):
+       self.name = name
+       self.age = age
+
+
+print(Persion.__dict__)
+t = Persion("tom",20)#DataInject(Persion)() ===> old Persion Instance
+f = Persion("jerry",18)
+print(t.__dict__)
+print(t.name)
+print(f.name)
+#
+
+
+```
