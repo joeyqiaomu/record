@@ -1,5 +1,5 @@
 # **描述器**
-- 用到3个魔术方法: __get__() 、 __set__() 、 __delete__()
+
 - 方法签名如下
   - object.__get__(self, instance, owner)
   - object.__set__(self, instance, value)
@@ -8,7 +8,7 @@
     - instance 是owner的实例
     - owner 是属性的所属的类
 - 请思考下面程序的执行流程是什么?
-
+![](.png)
 
 ```python
 
