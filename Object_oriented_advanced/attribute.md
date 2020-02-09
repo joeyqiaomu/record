@@ -661,3 +661,447 @@ cart + 5 +4
 print(cart)
 
 ```
+
+## **可调用对象(任意一个类的实例是否可调用)**
+
+```
+__call__ : 类中定义一个该方法,实例就可以像函数一样调用
+```
+```python
+class Fib:
+
+    def __init__(self):
+        self.items = [0,1,1]
+
+    def __len__(self):
+        return len(self.items)
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def __getitem__(self, index):
+        if index < 0 :
+            raise IndexError("Not Negative index")
+        print("11111111111111")
+        if index < len(self):
+            return self.items[index]
+        print("2222222222222222222222222222222")
+        for i in range(len(self.items) ,index+1): #3
+            self.items.append(self.items[i-1] + self.items[i-2])
+            print("######################################3")
+        return self.items[index]
+
+
+    def __repr__(self):
+        return "<{}{}>".format(__class__.__name__,self.items)
+
+
+    def __call__(self, index):
+        return self[index]
+
+
+f = Fib()
+
+print(f(35))
+print("---------------------------------")
+print(f[40])
+print(f(6))
+print(f)
+
+----------------------------------------------------------------
+class Fib:
+
+    def __init__(self):
+        self.items = [0,1,1]
+
+    def __len__(self):
+        return len(self.items)
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def __call__(self, index):
+        if index < 0 :
+            raise IndexError("Not Negative index")
+        print("11111111111111")
+        if index < len(self):
+            return self.items[index]
+        print("2222222222222222222222222222222")
+        for i in range(len(self.items) ,index+1): #3
+            self.items.append(self.items[i-1] + self.items[i-2])
+            print("######################################3")
+        return self.items[index]
+
+
+    def __str__(self):
+        return "<{}{}>".format(__class__.__name__,self.items)
+
+
+    __repr__ = __str__
+
+
+    def __getitem__(self, index):
+        return self(index)
+
+
+f = Fib()
+
+print(f(35))
+print("---------------------------------")
+print(f[40])
+print(f(6))
+print(f)
+```
+
+
+## **上下文管理**
+
+```
+ __enter__ :　进入与此对象相关的上下文。如果存在该方法,with语法会把该方法的返回值作为绑定到as
+子句中指定的变量上
+
+ __exit__　：　退出与此对象相关的上下文。
+
+ 当一个对象同时实现了 __enter__ ()和 __exit__ ()方法,它就属于上下文管理的对象
+
+```
+```python
+
+class Point:
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+with Point() as p: # AttributeError: __exit__
+    pass
+
+'''
+/home/joey/python/code/venv/bin/python /home/joey/python/code/t1.py
+Traceback (most recent call last):
+  File "/home/joey/python/code/t1.py", line 8, in <module>
+    with Point() as p: # AttributeError: __exit__
+AttributeError: __enter__
+
+
+/home/joey/python/code/venv/bin/python /home/joey/python/code/t1.py
+Traceback (most recent call last):
+  File "/home/joey/python/code/t1.py", line 7, in <module>
+    with Point() as p: # AttributeError: __exit__
+AttributeError: __exit__
+
+
+
+'''
+
+'''
+__enter__ : 进入与此对象相关的上下文。如果存在该方法,with语法会把该方法的返回值作为绑定到as 子句中指定的变量上
+__exit__　；　退出与此对象相关的上下文。
+当一个对象同时实现了 __enter__ ()和 __exit__ ()方法,它就属于上下文管理的对象
+
+
+with p as f:
+with语法,
+   会调用with后的对象的__enter__方法,
+    如果有as,则将该方法的返回值赋给as子句的变量上例,可以等价为f = p.__enter__()
+
+
+__enter__ 方法 没有其他参数。
+__exit__ 方法有3个参数:
+__exit__(self, exc_type, exc_value, traceback)
+这三个参数都与异常有关。
+如果该上下文退出时没有异常,这3个参数都为None。
+如果有异常,参数意义如下
+exc_type ,异常类型
+exc_value ,异常的值
+traceback ,异常的追踪信息
+__exit__ 方法返回一个等效True的值,则压制异常;否则,继续抛出异常
+'''
+
+import time
+class Point:
+
+    def __init__(self):
+        print(1, "init~~~~~~~~~~~~~~")
+        time.sleep(3)
+
+    def __enter__(self):
+        print(2, "enter~~~~~~~~~~~~~~")
+        time.sleep(3)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print(5, " exit~~~~~~~~~~~~~")
+        time.sleep(3)
+
+#with 是　进入with快调用witｈ后面的实例(Point())的__enter__
+#　离开是调用witｈ后面的实例(Point())的__exit__
+
+with Point() as p: #  b = self.__enter__()__ 返回值是自己的self_
+    print(3, "enter with ~~~~~~~~~~~~~~")
+    1/0 #　出现异常情况下　执行顺序　１　２　３　５　
+    time.sleep(3)
+    print(4, "exit with ~~~~~~~~~~~~~~")
+
+'''
+p = Point()
+with p as f:
+  print('in with-------------')
+  print(p == f)
+  print('with over')
+  print('=======end==========')
+with语法,会调用with后的对象的__enter__方法,如果有as,则将该方法的返回值赋给as子句的变量上例,可以等价为f = p.__enter__()
+‘’‘
+
+#执行顺序
+'''
+/home/joey/python/code/venv/bin/python /home/joey/python/code/t1.py
+1 init~~~~~~~~~~~~~~
+2 enter~~~~~~~~~~~~~~
+3 enter with ~~~~~~~~~~~~~~
+4 exit with ~~~~~~~~~~~~~~
+5  exit~~~~~~~~~~~~~
+
+Process finished with exit code 0
+
+'''
+
+```pythoh
+import time
+class Point:
+
+    def __init__(self):
+        print(1, "init~~~~~~~~~~~~~~")
+
+    def __enter__(self):
+        print(2, "enter~~~~~~~~~~~~~~")
+        return self
+    #  exc_type 异常类型
+    #  exc_val 异常值
+    #  traceback
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print(exc_type)
+        print(exc_val)
+        print(exc_tb)
+        print(5, " exit~~~~~~~~~~~~~")
+        return  1 # return 等效为true，则压制异常，如果等效为false，则抛出异常
+
+# with 语法：
+a = Point()
+with a as b:   # b = a.__enter__() 返回值是自己的self
+    print(1, a)
+    print(2, b)
+    print(a == b)
+    print(a is b)
+    print(id(a),id(b))
+    print("================================")
+    1 / 0
+
+#
+# f = open('t1.py')
+# with f as f1:
+#     print(f == f1)
+#     print(f is f1)
+#     print(id(f),id(f1))
+#
+#
+# with open('t2.py') as f:
+#     print()
+
+
+```
+##  **计时**
+
+```python
+import time
+import datetime
+from functools import wraps,update_wrapper
+
+class Timeit:
+
+    def __init__(self,fn):
+        self._fn = fn
+
+    def __enter__(self):
+        self.start = datetime.datetime.now()
+        #return self._fn
+        return self
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        delta = (datetime.datetime.now()-self.start).total_seconds()
+        print("{} took {}s. in dec".format(self._fn.__name__, delta))
+
+    def __call__(self, *args, **kwargs):
+        #return self._fn(*args, **kwargs)
+        start = datetime.datetime.now()
+        ret = self._fn(*args, **kwargs)
+        delta = (datetime.datetime.now() - start).total_seconds()
+        print("{} took {}s. in timeit()".format(self._fn.__name__, delta))
+        return ret
+
+
+def timeit(fn):
+    @wraps(fn)
+    def wrapper(*args,**kwargs):
+        start = datetime.datetime.now()
+        ret = fn(*args,**kwargs)
+        delta = (datetime.datetime.now()-start).total_seconds()
+        print("{} took {}s. in timeit()".format(fn.__name__, delta))
+        return ret
+    return wrapper
+
+
+@timeit
+def add(x,y):
+    time.sleep(3)
+    return x+ y
+
+
+with Timeit(add) as timeinstance:
+    timeinstance(4,5)
+
+add(4, 5)
+
+Timeit(add)(5,6)
+```
+
+
+```python
+
+import time
+import datetime
+from functools import wraps,update_wrapper
+
+class Timeit:
+
+    def __init__(self,fn):
+        self._fn = fn
+
+    def __enter__(self):
+        self.start = datetime.datetime.now()
+        #return self._fn
+        return self
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        delta = (datetime.datetime.now()-self.start).total_seconds()
+        print("{} took {}s. in dec".format(self._fn.__name__, delta))
+
+    def __call__(self, *args, **kwargs):
+        #return self._fn(*args, **kwargs)
+        start = datetime.datetime.now()
+        ret = self._fn(*args, **kwargs)
+        delta = (datetime.datetime.now() - start).total_seconds()
+        print("{} took {}s. in timeit()".format(self._fn.__name__, delta))
+        return ret
+
+
+@Timeit# add =Timeit(add) s
+def add(x,y):
+    time.sleep(3)
+    return x+ y
+
+print(add(4, 5))
+
+
+```
+
+
+```python
+import time
+import datetime
+from functools import wraps,update_wrapper
+
+class Timeit:
+
+    def __init__(self,fn):
+        self._fn = fn
+
+    def __call__(self, *args, **kwargs):
+        #return self._fn(*args, **kwargs)
+        start = datetime.datetime.now()
+        ret = self._fn(*args, **kwargs)
+        delta = (datetime.datetime.now() - start).total_seconds()
+        print("{} took {}s. in timeit()".format(self._fn.__name__, delta))
+        return ret
+
+
+@Timeit# add =Timeit(add)
+def add(x,y):
+    time.sleep(3)
+    return x+ y
+
+print(add(4, 5))
+
+print(callable(add) ,callable(Timeit),callable(Timeit(add)))
+
+callable ----就是是标识符后面可以添加()
+1 　函数可调用　
+２　类本身就是可以实例化，当然可调用
+３　Timeit(add)　实例有__call__方法，也可以掉用
+```
+
+
+```python
+
+
+import time
+import datetime
+from functools import wraps,update_wrapper
+
+class Timeit:
+    ''' i am Timite '''
+    def __init__(self,fn):
+        self._fn = fn
+        # self.__doc__ = fn.__doc__
+        # self.__name__ = fn.__name__
+        #update_wrapper(self,fn)
+        wraps(fn)(self)
+
+    def __call__(self, *args, **kwargs):
+        #return self._fn(*args, **kwargs)
+        start = datetime.datetime.now()
+        ret = self._fn(*args, **kwargs)
+        delta = (datetime.datetime.now() - start).total_seconds()
+        print("{} took {}s. in timeit()".format(self._fn.__name__, delta))
+        return ret
+
+
+
+
+@Timeit# add =Timeit(add)
+def add(x,y):
+    '''thi is add function '''
+    time.sleep(1)
+    return x+ y
+
+print(add(4, 5))
+print(add.__doc__)
+print(add.__name__)
+print(callable(add) ,callable(Timeit),callable(Timeit(add)))
+```
+
+## **上下文应用场景**
+
+1. 增强功能
+在代码执行的前后增加代码,以增强其功能。类似装饰器的功能。
+2. 资源管理
+打开了资源需要关闭,例如文件对象、网络连接、数据库连接等
+3. 权限验证
+在执行代码之前,做权限的验证,在 __enter__ 中处理
+
+
+## **contextlib.contextmanager**
+
+```python
+import contextlib
+@contextlib.contextmanager
+def foo(): #
+  print('enter')
+  # 相当于__enter__()
+  yield # yield 5,yield的值只能有一个,作为__enter__方法的返回值
+  print('exit') # 相当于__exit__()
+with foo() as f:
+  raise Exception()
+print(f)
+```
