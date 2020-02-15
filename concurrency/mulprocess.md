@@ -1,4 +1,67 @@
-# **多进程**
+
+# **<font color=Red> 数据结构和GIL**
+
+# **<font color=Red> GIL全局解释器锁**
+
+- CPython 在解释器进程级别有一把锁,叫做GIL,即全局解释器锁。
+- **<font color=Red>GIL 保证CPythonY一个进程中,只有一个线程执行字节码。甚至是在多核CPU的情况下,也只允许同时只能有一个CPU
+上运行该进程的一个线程**
+
+```
+CPython中
+IO密集型,某个线程阻塞,就会调度其他就绪线程;
+CPU密集型,当前线程可能会连续的获得GIL,导致其它线程几乎无法使用CPU。
+在CPython中由于有GIL存在,IO密集型,使用多线程较为合算;CPU密集型,使用多进程,要绕开GIL。
+新版CPython正在努力优化GIL的问题,但不是移除。
+如果在意多线程的效率问题,请绕行,选择其它语言erlang、Go等
+```
+```python
+
+'''
+CPU密集型,当前线程可能会连续的获得GIL,导致其它线程几乎无法使用CPU
+'''
+import threading
+import logging
+import datetime
+logging.basicConfig(level=logging.INFO, format="%(thread)s %(message)s")
+start = datetime.datetime.now()
+# 计算
+def calc():
+  sum = 0
+    for _ in range(1000000000): # 10亿
+    sum += 1
+t1 = threading.Thread(target=calc)
+t2 = threading.Thread(target=calc)
+t3 = threading.Thread(target=calc)
+t4 = threading.Thread(target=calc)
+t1.start()
+t2.start()
+t3.start()
+t4.start()
+t1.join()
+t2.join()
+t3.join()
+t4.join()
+delta = (datetime.datetime.now() - start).total_seconds()
+logging.info(delta)
+
+----------------------------------------------------------------------
+# 计算
+def calc():
+  sum = 0
+    for _ in range(1000000000): # 10亿
+    sum += 1
+calc()
+calc()
+calc()
+calc()
+delta = (datetime.datetime.now() - start).total_seconds()
+logging.info(delta)
+
+```
+
+
+# **<font color=Red> 多进程**
 
 
 - 注意:多进程代码一定要放在 __name__ == "__main__" 下面执行。
@@ -12,7 +75,8 @@
 |terminate()           | 终止指定的进程 |
 
 
-- . 多进程就是启动多个解释器进程,进程间通信必须序列化、反序列化
+
+- 多进程就是启动多个解释器进程,进程间通信必须序列化、反序列化
 
 - 数据的线程安全性问题 如果每个进程中没有实现多线程,GIL可以说没什么用了
 
@@ -69,7 +133,7 @@ if __name__ == '__main__':
 
 
 
-### **pool.apply(calc, (i,)) #同步 阻塞的方法**
+### **<font color=Red> pool.apply(calc, (i,)) #同步 阻塞的方法**
 ```python
 import multiprocessing
 import threading
@@ -97,8 +161,6 @@ if __name__ == '__main__':
         #p = multiprocessing.Process(target=calc, args=(i,), name='calc-{}'.format(i))
         r = pool.apply(calc, (i,)) #同步 阻塞的方法
         logging.info(r)
-        #ps.append(p)
-        #p.start()
     logging.info("+++++++++++++++++++++++++++++++++")
     pool.close()
     pool.join()
@@ -112,10 +174,11 @@ if __name__ == '__main__':
 
     print(threading.enumerate())
     print('===end====')
+
 ```
 
 
-### **r = pool.apply_async(calc, (i,)) #异步 非阻塞的方法**
+### **<font color=Red> r = pool.apply_async(calc, (i,)) #异步 非阻塞的方法**
 - 异步 打饭的时候，仅仅哪一个牌子
 
 
@@ -183,13 +246,16 @@ Process finished with exit code 0
 
 ‘‘’
 ```
-### **callback**
+### **<font color=Red>callback**
 ```python
+
 import multiprocessing
-import threading
 import datetime
 import logging
-from multiprocessing import Event,Lock,Semaphore
+import threading
+from multiprocessing import Event, Lock,Semaphore,Queue
+#进程之间通信用到的锁，信号量
+
 
 FORMAT = '%(asctime)s %(process)s %(processName)s %(threadName)s %(thread)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -199,32 +265,25 @@ def calc(i):
     sum = 0
     for _ in range(1000000000): # 10亿
         sum += 1
-    ret = i, sum
-    logging.info(ret)
-    return ret
+    logging.info('i={} sum{}'.format(i,sum))
+    return i, sum
 
 if __name__ == '__main__':
     start = datetime.datetime.now() # 注意一定要有这一句
     pool = multiprocessing.Pool(4)
     for i in range(4):
-        r = pool.apply_async(calc, (i,), callback=lambda ret:logging.info(ret)) #异步  非阻塞
+        print(1,threading.enumerate())
+        r = pool.apply_async(calc, (i,),callback=lambda x:logging.info('{}.in main~~~~~~~~~'.format(x)))
         logging.info(r)
-        logging.info("************************************")
-
-    logging.info("+++++++++++++++++++++++++++++++++")
+        print("++++++++++++++++++++++++++++++++++")
+    print("++++++========================++++++++++")
     pool.close()
-    logging.info("==============================")
+    print("*************************************")
     pool.join()
-    logging.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-    '''
-    callback 和主进程join相当于不同的线程 callback也是阻塞状态，每一个callback都一个线程
-    '''
-
+    print("*********+++++++++++++++++++*****************")
     delta = (datetime.datetime.now() - start).total_seconds()
     print(delta)
-
-    print(threading.enumerate())
+    print(2,threading.enumerate())
     print('===end====')
 
 
@@ -303,7 +362,7 @@ if __name__ == '__main__':
 
 ```
 
-## **多进程、多线程的选择**
+## **<font color=Red>多进程、多线程的选择**
 - CPU密集型 CPython中使用到了GIL,多线程的时候锁相互竞争,且多核优势不能发挥,选用Python多进程效率更高。
 - IO密集型在Python中适合是用多线程,可以减少多进程间IO的序列化开销。且在IO等待的时候,切换到其他线程继续执行,效率不错。
 - 应用
@@ -312,16 +371,23 @@ master启动多个worker工作进程,一般和CPU数目相同。发挥多核优�
 worker工作进程中,往往需要操作网络IO和磁盘IO,启动多线程,提高并发处理能力。worker处理用户的请求,往往需要等待数据,处理完请求还要通过网络IO返回响应。
 这就是nginx工作模式。
 
-# **Executor类子类对象。**
+# **<font color=Red>Executor类子类对象。**
 
 | 名称               |       含义          |
 |:------------------ |:---------------------------------------------------------------------------:|
-| ThreadPoolExecutor(max_workers=1)   |                                      |
-| clear()            |                                                      |
-| is_set()           |                                                     |
-| wait(timeout=None) | e|
+| ThreadPoolExecutor(max_workers=1)   |    池中至多创建max_workers个线程的池来同时异步执行,返回Executor实例                                  |
+| submit(fn, *args, **kwargs)        |                        提交执行的函数及其参数,返回Future类的实例                              |
+| shutdown(wait=True)        |            清理池                                         |
 
-# 线程池
+
+# **<font color=Red> Future类**
+
+
+
+
+
+
+## **<font color=Red>线程池**
 
 
 ```python
@@ -416,7 +482,7 @@ for f in fs:
     print(f.result())
 ```
 
-# 多进程池
+## **<font color=Red>多进程池**
 
 ```python
 from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
@@ -474,6 +540,9 @@ if __name__ == "__main__":
     for f in fs:
         print(f.result())
 ```
+
+
+
 ```python
 from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
 import threading
