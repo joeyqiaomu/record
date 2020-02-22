@@ -8,6 +8,10 @@
     - instance 是owner的实例
     - owner 是属性的所属的类
 - 请思考下面程序的执行流程是什么?
+
+
+
+
 ![](.png)
 
 ```python
@@ -72,7 +76,7 @@ instance 说明
 '''
 ```
 
-## 描述器只能用于类属性，跟属主的类属性有关
+##  **<font color=Red> 描述器只能用于类属性，跟属主的类属性有关**
 ```python
 
 
@@ -124,7 +128,7 @@ Process finished with exit code 0
 '''
 ```
 
-## **描述器定义**
+## **<font color=Red>描述器定义**
 - Python中,一个类实现了 __get__ 、 __set__ 、 __delete__ 三个方法中的任何一个方法,就是描述器。实现这三个中的某些方法,就支持了描述器协议。
 - 仅实现了 __get__ [______get____],就是**非数据描述符** __non-data descriptor__
 - 实现了 __get__  [______get____]、 __set__ [______set____] **就是数据描述符** __data descriptor__
