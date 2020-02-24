@@ -304,14 +304,7 @@ MariaDB [hellodb]> desc students;
 +-----------+---------------------+------+-----+---------+----------------+
 6 rows in set (0.001 sec)
 
-MariaDB [hellodb]>
-MariaDB [hellodb]>
-MariaDB [hellodb]>
-MariaDB [hellodb]>
-MariaDB [hellodb]>
-MariaDB [hellodb]>
-MariaDB [hellodb]>
-MariaDB [hellodb]>
+
 MariaDB [hellodb]>
 MariaDB [hellodb]> select * from students;
 +-------+---------------+-----+--------+---------+-----------+

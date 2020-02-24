@@ -1342,8 +1342,835 @@ except:
 
 ### **<font color=Red> 状态****
 
+
+
+ | 状态                 |                             说明                            |
+| :------------------------ | :-------------------------------------------------------------: |
+| transient                | 实体类尚未加入到session中,同时并没有保存到数据库中                                            |
+|pending | transient的实体被add()到session中,状态切换到pending,但它还没有flush到数据库中                                          |
+| fetchmany(size=None) | size指定返回的行数的行,None则返回组                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| persister            | session中的实体对象对应着数据库中的真实记录。pending状态在提交成功后可以变成 persistent状态,或者查询成功返回的实体也是persistent状态 |
+| deleted              | 实体被删除且已经flush但未commit完成。事务提交成功了,实体变成detached,事务失败返回persistent状态                                      |
+| detacheddetached     | 删除成功的实体进入这个状态                                                                                                           |                     |                                                                                                                                      |
+
+```python
+新建一个实体,状态是transient临时的。
+一旦add()后从transient变成pending状态。
+成功commit()后从pending变成persistent状态。
+成功查询返回的实体对象,也是persistent状态。
+persistent状态的实体,修改依然是persistent状态。
+persistent状态的实体,删除后,flush后但没有commit,就变成deteled状态,成功提交,变为detached状态,
+提交失败,还原到persistent状态。flush方法,主动把改变应用到数据库中去。
+删除、修改操作,需要对应一个真实的记录,所以要求实体对象是persistent状态。
+
+
+import sqlalchemy
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+connstr = "{}://{}:{}@{}:{}/{}".format(
+'mysql+pymysql', 'wayne', 'wayne',
+'192.168.142.140', 3306, 'test'
+)
+engine = create_engine(connstr, echo=True)
+Base = declarative_base()
+# 创建实体类
+class Student(Base):
+    # 指定表名
+    __tablename__ = 'student'
+    # 定义属性对应字段
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(64), nullable=False)
+    age = Column(Integer)
+    # 第一参数是字段名,如果和属性名不一致,则一定要指定
+    # age = Column('age', Integer)
+
+    def __repr__(self):
+        return "{} id={} name={} age={}".format(self.__class__.__name__, self.id, self.name, self.age)
+
+
+Session = sessionmaker(bind=engine)
+session = Session()
+from sqlalchemy.orm.state import InstanceState
+def getstate(instance, i):
+    inp:InstanceState = sqlalchemy.inspect(student)
+    states = "{}: key={}\nsid={}, attached={}, transient={}, " \
+    "pending={}, \npersistent={}, deleted={}, detached={}".format(
+    i, inp.key,
+    inp.session_id, inp._attached, inp.transient,
+    inp.pending, inp.persistent, inp.deleted, inp.detached
+    )
+    print(states, end='\n------------------------\n')
+
+
+student = session.query(Student).get(2)
+getstate(student, 1) # persistent
+
+try:
+    student = Student(id=2, name='sam', age=30)
+    getstate(student, 2) # transit
+    student = Student(name='sammy', age=30)
+    getstate(student, 3) # transient
+    session.add(student) # add后变成pending
+    getstate(student, 4) # pending
+    # session.delete(student) # 异常,删除的前提必须是persistent,也就是说先查后删
+    # getstate(student, 5)
+    session.commit() # 提交后,变成persistent
+    getstate(student, 6) # persistent
+except Exception as e:
+    session.rollback()
+    print(e, '~~~~~~~~~~~~~~~~')
+
+
+# 运行结果
+1: key=(<class '__main__.Student'>, (2,), None)
+sid=1, attached=True, transient=False, pending=False,
+persistent=True, deleted=False, detached=False
+persistent就是key不为None,附加的,且不是删除的,有sessionid
+------------------------
+2: key=None
+sid=None, attached=False, transient=True, pending=False,
+persistent=False, deleted=False, detached=False
+transient的key为None,且无附加
+------------------------
+3: key=None
+sid=None, attached=False, transient=True, pending=False,
+persistent=False, deleted=False, detached=False
+同上
+------------------------------
+4: key=None
+sid=1, attached=True, transient=False, pending=True,
+persistent=False, deleted=False, detached=False
+add后变成pending,已附加,但是没有key,有了sessionid
+------------------------------
+sqlalchemy.engine.base.Engine COMMIT
+6: key=(<class '__main__.Student'>, (3,), None)
+sid=1, attached=True, transient=False, pending=False,
+persistent=True, deleted=False, detached=False
+提交成功后,变成persistent,有了key
+------------------------------
 ```
+```python
 每一个实体,都有一个状态属性_sa_instance_state,其类型是sqlalchemy.orm.state.InstanceState,可以使用
 sqlalchemy.inspect(entity)函数查看状态。
 常见的状态值有transient、pending、persistent、deleted、detached。
+
+import sqlalchemy
+from sqlalchemy import create_engine, Column, String, Integer
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# "mysql+pymysql://username:password@ip:port/dbname"
+
+IP = '192.168.6.2'
+USERNAME = 'joey'
+PASSWORD = 'joey'
+DBNAME = 'test'
+PORT = 3306
+
+engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(USERNAME, PASSWORD, IP, PORT, DBNAME),
+                       echo=True)  # lazy
+print(engine)
+# print(Student.__dict__)
+# print(Student.__table__)
+# print(repr(Student.__table__))
+# Base.metadata.drop_all(engine)# 从base
+# Base.metadata.create_all(engine)
+
+##################################################################################
+
+# ORM Mapping
+Base = declarative_base()
+
+
+class Student(Base):
+    __tablename__ = 'student'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 定义字段类型和属性
+    name = Column(String(64), nullable=False)
+    age = Column(Integer)
+
+    def __repr__(self):
+        return "{} id ={},name={},age={}".format(
+
+            __class__.__name__, self.id, self.name, self.age
+        )
+
+
+###############################################
+# CREATE SEESION
+from sqlalchemy.orm.session import Session
+
+session: Session = sessionmaker(bind=engine)()
+# sesion = Session() #线程不安全，不能夸线程使用
+
+from sqlalchemy.orm.state import InstanceState
+
+
+def getstate(instance, i):
+    state: InstanceState = sqlalchemy.inspect(student)
+    output = " {} :{}:{}\n" \
+             "_attached={},transient={},pending={}\n" \
+             "persistent={},deleted={},detached:{}\n".format(i, state.key, state.session_id,
+             state._attached, state.transient, state.pending,
+             state.persistent, state.deleted, state.detached
+
+                                                             )
+    print(output, end='----------------\n')
+
+
+student = Student(id=2, name='ben', age=20) # 自定义的实例
+print(student.__dict__)  # {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x00000260BCCDB948>, 'id': 2, 'name': 'ben', 'age': 20}
+getstate(student, 0)
+
+#  0 :None:None
+# _attached=False,transient=True,pending=False
+# persistent=False,deleted=False,detached:False
+
+student = session.query(Student).get(1) #获取数据库的实例
+getstate(student,1)
+
+#  1 :(<class '__main__.Student'>, (1,), None):1
+# _attached=True,transient=False,pending=False
+# persistent=True,deleted=False,detached:False
+```
+### **<font color=Red> 复杂查询**
+```python
+#查询所有的ｒｅｃｏｒｄ
+emps = session.query(Employee)
+
+SELECT
+	employees.emp_no AS employees_emp_no,
+	employees.birth_date AS employees_birth_date,
+	employees.first_name AS employees_first_name,
+	employees.last_name AS employees_last_name,
+	employees.gender AS employees_gender,
+	employees.hire_date AS employees_hire_date
+FROM
+	employees
+
+## and
+#1
+emps = session.query(Employee).filter(Employee.emp_no > 10015,Employee.emp_no < 10018)
+show(emps)
+#2
+emps = session.query(Employee).filter(Employee.emp_no > 10015).filter(Employee.emp_no < 10018)
+show(emps)
+
+#3
+from sqlalchemy import and_,or_,not_
+emps = session.query(Employee).filter(and_(Employee.emp_no > 10015,Employee.emp_no < 10018))
+show(emps)
+
+#4
+emps = session.query(Employee).filter((Employee.emp_no > 10015) & (Employee.emp_no < 10018))
+show(emps)
+
+＃　或者
+from sqlalchemy import and_,or_,not_
+emps = session.query(Employee).filter(or_(Employee.emp_no == 10015,Employee.emp_no == 10018))
+show(emps)
+
+emps = session.query(Employee).filter((Employee.emp_no == 10015) | (Employee.emp_no == 10018))
+show(emps)
+
+
+＃　not
+emps = session.query(Employee).filter(~(Employee.emp_no < 10015))
+show(emps)
+
+emps = session.query(Employee).filter(not_(Employee.emp_no < 10015))
+show(emps)
+
+
+import sqlalchemy
+from sqlalchemy import create_engine, Column, String, Integer,Date,Enum
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# "mysql+pymysql://username:password@ip:port/dbname"
+
+IP = '192.168.6.2'
+USERNAME = 'joey'
+PASSWORD = 'joey'
+DBNAME = 'test'
+PORT = 3306
+
+engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(USERNAME, PASSWORD, IP, PORT, DBNAME),
+                       echo=True)  # lazy
+print(engine)
+# print(Student.__dict__)
+# print(Student.__table__)
+# print(repr(Student.__table__))
+# Base.metadata.drop_all(engine)# 从base
+# Base.metadata.create_all(engine)
+
+##################################################################################
+
+# ORM Mapping
+Base = declarative_base()
+import enum
+class GenderEnum(enum.Enum):
+    M = 'M'
+    F = 'F'
+
+
+class Student(Base):
+
+    __tablename__ = 'student'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 定义字段类型和属性
+    name = Column(String(64), nullable=False)
+    age = Column(Integer)
+
+    def __repr__(self):
+        return "{} id ={},name={},age={}".format(
+
+            __class__.__name__, self.id, self.name, self.age
+        )
+
+
+class Employee(Base):
+
+    __tablename__ = 'employees'
+
+    emp_no = Column(Integer,primary_key=True)
+    birth_date = Column(Date,nullable=False)
+    first_name = Column(String(14),nullable=False)
+    last_name = Column(String(16),nullable=False)
+    gender = Column(Enum(GenderEnum),nullable=False)
+    hire_date = Column(Date,nullable=False)
+
+    def __repr__(self):
+        return "<{} no ={},birth_date={},first_name={},last_name={},gender={},hird_date={}".format(
+            __class__.__name__, self.emp_no, self.birth_date, self.first_name,self.last_name,self.gender.value,self.hire_date
+        )
+
+from sqlalchemy.orm.session import Session
+
+session: Session = sessionmaker(bind=engine)()
+# sesion = Session() #线程不安全，不能夸线程使用
+def show(emps):
+    for i in emps:
+        print(i)
+    print(end='\n\n')
+
+
+from sqlalchemy import and_,or_,not_
+emps = session.query(Employee).filter(~(Employee.emp_no < 10015))
+show(emps)
+
+emps = session.query(Employee).filter(not_(Employee.emp_no < 10015))
+show(emps)
+
+# or
+#
+# emps = session.query(Employee).filter(or_(Employee.emp_no == 10015,Employee.emp_no == 10018))
+# show(emps)
+#
+# emps = session.query(Employee).filter((Employee.emp_no == 10015) | (Employee.emp_no == 10018))
+# show(emps)
+
+
+# emps = session.query(Employee)
+# show(emps)
+
+# emps = session.query(Employee).filter(Employee.emp_no > 10015)
+# print(emps)
+# show(emps)
+#
+# ## and
+# #1
+# emps = session.query(Employee).filter(Employee.emp_no > 10015,Employee.emp_no < 10018)
+# show(emps)
+# #2
+# emps = session.query(Employee).filter(Employee.emp_no > 10015).filter(Employee.emp_no < 10018)
+# show(emps)
+#
+# #3
+# from sqlalchemy import and_,or_,not_
+# emps = session.query(Employee).filter(and_(Employee.emp_no > 10015,Employee.emp_no < 10018))
+# show(emps)
+#
+# #4
+# emps = session.query(Employee).filter((Employee.emp_no > 10015) & (Employee.emp_no < 10018))
+# show(emps)
+
+```
+
+
+```python
+# in
+emplist = [10010, 10015, 10018]
+emps = session.query(Employee).filter(Employee.emp_no.in_(emplist))
+show(emps)
+# not in
+emps = session.query(Employee).filter(~Employee.emp_no.in_(emplist))
+emps = session.query(Employee).filter(Employee.emp_no.notin_(emplist))
+show(emps)
+
+# like
+emps = session.query(Employee).filter(Employee.last_name.like('P%'))
+show(emps)
+# not like
+emps = session.query(Employee).filter(Employee.last_name.notlike('P%'))
+# ilike可以忽略大小写匹配
+
+# 排序
+
+def show(emps):
+    for i in emps:
+        print(i)
+    print(end='\n\n')
+
+
+emps = session.query(Employee).filter(Employee.last_name.like('%M%'))
+show(emps.order_by(Employee.emp_no))
+show(emps.order_by(Employee.emp_no.desc(),Employee.gender.desc()))
+show(emps.order_by(Employee.emp_no.desc()).order_by(Employee.gender.desc()))
+
+``
+
+
+```python
+
+import sqlalchemy
+from sqlalchemy import create_engine, Column, String, Integer,Date,Enum
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# "mysql+pymysql://username:password@ip:port/dbname"
+
+IP = '192.168.6.2'
+USERNAME = 'joey'
+PASSWORD = 'joey'
+DBNAME = 'test'
+PORT = 3306
+
+engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(USERNAME, PASSWORD, IP, PORT, DBNAME),
+                       echo=True)  # lazy
+print(engine)
+# print(Student.__dict__)
+# print(Student.__table__)
+# print(repr(Student.__table__))
+# Base.metadata.drop_all(engine)# 从base
+# Base.metadata.create_all(engine)
+
+##################################################################################
+
+# ORM Mapping
+Base = declarative_base()
+import enum
+class GenderEnum(enum.Enum):
+    M = 'M'
+    F = 'F'
+
+
+class Student(Base):
+
+    __tablename__ = 'student'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 定义字段类型和属性
+    name = Column(String(64), nullable=False)
+    age = Column(Integer)
+
+    def __repr__(self):
+        return "{} id ={},name={},age={}".format(
+
+            __class__.__name__, self.id, self.name, self.age
+        )
+
+
+class Employee(Base):
+
+    __tablename__ = 'employees'
+
+    emp_no = Column(Integer,primary_key=True)
+    birth_date = Column(Date,nullable=False)
+    first_name = Column(String(14),nullable=False)
+    last_name = Column(String(16),nullable=False)
+    gender = Column(Enum(GenderEnum),nullable=False)
+    hire_date = Column(Date,nullable=False)
+
+    def __repr__(self):
+        return "<{} no ={},birth_date={},first_name={},last_name={},gender={},hird_date={}>".format(
+            __class__.__name__, self.emp_no, self.birth_date, self.first_name,self.last_name,self.gender.value,self.hire_date
+        )
+
+from sqlalchemy.orm.session import Session
+
+session: Session = sessionmaker(bind=engine)()
+# sesion = Session() #线程不安全，不能夸线程使用
+def show(emps):
+    for i in emps:
+        print(i)
+    print(end='\n\n')
+
+
+emps = session.query(Employee).filter(Employee.last_name.like('%M%'))
+print("--------------------------")
+print(type(emps))
+show(emps.order_by(Employee.emp_no))
+show(emps.order_by(Employee.emp_no.desc(),Employee.gender.desc()))
+emps = emps.order_by(Employee.emp_no.desc()).order_by(Employee.gender.desc())
+emps = emps.limit(2).offset(2)
+show(emps)
+print(emps.all())#列表,没有查到返回空列表
+print(emps.first()) #一个对象,没有查到返回none
+print(emps.count())#0-n
+
+#print(emps.one())#sqlalchemy.orm.exc.MultipleResultsFound: Multiple rows were found for one() 多余一个　抛异常, 少于一行　跑异常
+
+#in
+# emps = session.query(Employee).filter(Employee.emp_no.in_([10015,10018,10020]))
+# show(emps)
+#from sqlalchemy import and_,or_,not_
+# emps = session.query(Employee).filter(~(Employee.emp_no < 10015))
+# show(emps)
+#
+# emps = session.query(Employee).filter(not_(Employee.emp_no < 10015))
+# show(emps)
+
+# or
+#
+# emps = session.query(Employee).filter(or_(Employee.emp_no == 10015,Employee.emp_no == 10018))
+# show(emps)
+#
+# emps = session.query(Employee).filter((Employee.emp_no == 10015) | (Employee.emp_no == 10018))
+# show(emps)
+
+
+# emps = session.query(Employee)
+# show(emps)
+
+# emps = session.query(Employee).filter(Employee.emp_no > 10015)
+# print(emps)
+# show(emps)
+#
+# ## and
+# #1
+# emps = session.query(Employee).filter(Employee.emp_no > 10015,Employee.emp_no < 10018)
+# show(emps)
+# #2
+# emps = session.query(Employee).filter(Employee.emp_no > 10015).filter(Employee.emp_no < 10018)
+# show(emps)
+#
+# #3
+# from sqlalchemy import and_,or_,not_
+# emps = session.query(Employee).filter(and_(Employee.emp_no > 10015,Employee.emp_no < 10018))
+# show(emps)
+#
+# #4
+# emps = session.query(Employee).filter((Employee.emp_no > 10015) & (Employee.emp_no < 10018))
+# show(emps)
+
+```
+
+### **<font color=Red> 聚合**
+
+```python
+
+import sqlalchemy
+from sqlalchemy import create_engine, Column, String, Integer,Date,Enum
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# "mysql+pymysql://username:password@ip:port/dbname"
+
+IP = '192.168.6.2'
+USERNAME = 'joey'
+PASSWORD = 'joey'
+DBNAME = 'test'
+PORT = 3306
+
+engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(USERNAME, PASSWORD, IP, PORT, DBNAME),
+                       echo=True)  # lazy
+print(engine)
+# print(Student.__dict__)
+# print(Student.__table__)
+# print(repr(Student.__table__))
+# Base.metadata.drop_all(engine)# 从base
+# Base.metadata.create_all(engine)
+
+##################################################################################
+
+# ORM Mapping
+Base = declarative_base()
+import enum
+class GenderEnum(enum.Enum):
+    M = 'M'
+    F = 'F'
+
+
+class Student(Base):
+
+    __tablename__ = 'student'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 定义字段类型和属性
+    name = Column(String(64), nullable=False)
+    age = Column(Integer)
+
+    def __repr__(self):
+        return "{} id ={},name={},age={}".format(
+
+            __class__.__name__, self.id, self.name, self.age
+        )
+
+
+class Employee(Base):
+
+    __tablename__ = 'employees'
+
+    emp_no = Column(Integer,primary_key=True)
+    birth_date = Column(Date,nullable=False)
+    first_name = Column(String(14),nullable=False)
+    last_name = Column(String(16),nullable=False)
+    gender = Column(Enum(GenderEnum),nullable=False)
+    hire_date = Column(Date,nullable=False)
+
+    def __repr__(self):
+        return "<{} no ={},birth_date={},first_name={},last_name={},gender={},hird_date={}>".format(
+            __class__.__name__, self.emp_no, self.birth_date, self.first_name,self.last_name,self.gender.value,self.hire_date
+        )
+
+from sqlalchemy.orm.session import Session
+
+session: Session = sessionmaker(bind=engine)()
+# sesion = Session() #线程不安全，不能夸线程使用
+def show(emps):
+    for i in emps:
+        print(i)
+    print(end='\n\n')
+
+from sqlalchemy import func
+
+emps = session.query(func.count(Employee.emp_no),func.max(Employee.emp_no))
+
+print(emps.all())
+print(emps.first())
+print(emps.one())
+print(emps.scalar())
+
+
+```
+
+### **<font color=Red> 分组**
+
+```python
+import sqlalchemy
+from sqlalchemy import create_engine, Column, String, Integer,Date,Enum
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# "mysql+pymysql://username:password@ip:port/dbname"
+
+IP = '192.168.6.2'
+USERNAME = 'joey'
+PASSWORD = 'joey'
+DBNAME = 'test'
+PORT = 3306
+
+engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(USERNAME, PASSWORD, IP, PORT, DBNAME),
+                       echo=True)  # lazy
+print(engine)
+# print(Student.__dict__)
+# print(Student.__table__)
+# print(repr(Student.__table__))
+# Base.metadata.drop_all(engine)# 从base
+# Base.metadata.create_all(engine)
+
+##################################################################################
+
+# ORM Mapping
+Base = declarative_base()
+import enum
+class GenderEnum(enum.Enum):
+    M = 'M'
+    F = 'F'
+
+
+class Student(Base):
+
+    __tablename__ = 'student'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 定义字段类型和属性
+    name = Column(String(64), nullable=False)
+    age = Column(Integer)
+
+    def __repr__(self):
+        return "{} id ={},name={},age={}".format(
+
+            __class__.__name__, self.id, self.name, self.age
+        )
+
+
+class Employee(Base):
+
+    __tablename__ = 'employees'
+
+    emp_no = Column(Integer,primary_key=True)
+    birth_date = Column(Date,nullable=False)
+    first_name = Column(String(14),nullable=False)
+    last_name = Column(String(16),nullable=False)
+    gender = Column(Enum(GenderEnum),nullable=False)
+    hire_date = Column(Date,nullable=False)
+
+    def __repr__(self):
+        return "<{} no ={},birth_date={},first_name={},last_name={},gender={},hird_date={}>".format(
+            __class__.__name__, self.emp_no, self.birth_date, self.first_name,self.last_name,self.gender.value,self.hire_date
+        )
+
+from sqlalchemy.orm.session import Session
+
+session: Session = sessionmaker(bind=engine)()
+# sesion = Session() #线程不安全，不能夸线程使用
+def show(emps):
+    for i in emps:
+        print(i)
+    print(end='\n\n')
+
+from sqlalchemy import func
+
+emps = session.query(Employee.gender,func.count(Employee.emp_no),func.max(Employee.emp_no))
+emps = emps.group_by(Employee.emp_no)
+
+print(emps.all())
+print(emps.first())
+#print(emps.one())
+#print(emps.scalar())
+
+```
+
+### **<font color=Red> 关联查询*
+
+```python
+import sqlalchemy
+from sqlalchemy import create_engine, Column, String, Integer,Date,Enum,ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# "mysql+pymysql://username:password@ip:port/dbname"
+
+IP = '192.168.6.2'
+USERNAME = 'joey'
+PASSWORD = 'joey'
+DBNAME = 'test'
+PORT = 3306
+
+engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(USERNAME, PASSWORD, IP, PORT, DBNAME),
+                       echo=True)  # lazy
+print(engine)
+# print(Student.__dict__)
+# print(Student.__table__)
+# print(repr(Student.__table__))
+
+
+##################################################################################
+
+# ORM Mapping
+Base = declarative_base()
+import enum
+class GenderEnum(enum.Enum):
+    M = 'M'
+    F = 'F'
+
+
+# class Student(Base):
+#
+#     __tablename__ = 'student'
+#
+#     id = Column(Integer, primary_key=True, autoincrement=True)  # 定义字段类型和属性
+#     name = Column(String(64), nullable=False)
+#     age = Column(Integer)
+#
+#     def __repr__(self):
+#         return "{} id ={},name={},age={}".format(
+#
+#             __class__.__name__, self.id, self.name, self.age
+#         )
+
+
+class Employee(Base):
+
+    __tablename__ = 'employees1'
+
+    emp_no = Column(Integer,primary_key=True)
+    birth_date = Column(Date,nullable=False)
+    first_name = Column(String(14),nullable=False)
+    last_name = Column(String(16),nullable=False)
+    gender = Column(Enum(GenderEnum),nullable=False)
+    hire_date = Column(Date,nullable=False)
+
+    def __repr__(self):
+        return "<{} no ={},birth_date={},first_name={},last_name={},gender={},hird_date={}>".format(
+            __class__.__name__, self.emp_no, self.birth_date, self.first_name,self.last_name,self.gender.value,self.hire_date
+        )
+
+class Departments(Base):
+
+    __tablename__ = 'departments1'
+
+    dept_no = Column(String(4),primary_key=True)
+    dept_name = Column(String(40),nullable=False,unique=True)
+
+    def __repr__(self):
+        return "<{} dept_no ={},dept_name={}>".format(
+            __class__.__name__, self.dept_no, self.dept_name
+        )
+
+
+class Dept_emp(Base):
+    __tablename__ = 'dept_emp1'
+
+    emp_no = Column(Integer,ForeignKey('employees1.emp_no',ondelete='CASCADE'), primary_key=True)
+    dept_no = Column(String(4),ForeignKey('departments1.dept_no',ondelete='CASCADE'), primary_key=True)
+    from_date = Column(Date, nullable=False)
+    to_date = Column(Date, nullable=False)
+
+    def __repr__(self):
+        return "<{} emp_no ={},dept_no={},>".format(
+            __class__.__name__, self.emp_no, self.dept_no
+        )
+
+
+Base.metadata.drop_all(engine)# 从base
+Base.metadata.create_all(engine)
+'''
+CREATE TABLE employees1 (
+	emp_no INTEGER NOT NULL AUTO_INCREMENT,
+	birth_date DATE NOT NULL,
+	first_name VARCHAR(14) NOT NULL,
+	last_name VARCHAR(16) NOT NULL,
+	gender ENUM('M','F') NOT NULL,
+	hire_date DATE NOT NULL,
+	PRIMARY KEY (emp_no)
+)
+
+
+2020-02-24 22:42:01,039 INFO sqlalchemy.engine.base.Engine {}
+2020-02-24 22:42:01,042 INFO sqlalchemy.engine.base.Engine COMMIT
+2020-02-24 22:42:01,042 INFO sqlalchemy.engine.base.Engine
+CREATE TABLE departments1 (
+	dept_no VARCHAR(4) NOT NULL,
+	dept_name VARCHAR(40) NOT NULL,
+	PRIMARY KEY (dept_no),
+	UNIQUE (dept_name)
+)
+
+
+2020-02-24 22:42:01,042 INFO sqlalchemy.engine.base.Engine {}
+2020-02-24 22:42:01,044 INFO sqlalchemy.engine.base.Engine COMMIT
+2020-02-24 22:42:01,045 INFO sqlalchemy.engine.base.Engine
+CREATE TABLE dept_emp1 (
+	emp_no INTEGER NOT NULL,
+	dept_no VARCHAR(4) NOT NULL,
+	from_date DATE NOT NULL,
+	to_date DATE NOT NULL,
+	PRIMARY KEY (emp_no, dept_no),
+	FOREIGN KEY(emp_no) REFERENCES employees1 (emp_no) ON DELETE CASCADE,
+	FOREIGN KEY(dept_no) REFERENCES departments1 (dept_no) ON DELETE CASCADE
+)
+'''
+
 ```
