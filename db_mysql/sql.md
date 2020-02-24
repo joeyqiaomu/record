@@ -1135,9 +1135,86 @@ Process finished with exit code 0
 
 
 ```
+## **<font color=Red> 增加**
 
+- add():增加一个对象
+- add_all():可迭代对象,元素是对象
 
-### **<font color=Red> 查**
+```python
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+USER = 'wayne'
+PASSWORD = 'wayne'
+HOST = '127.0.0.1'
+PORT = 3306
+DATABASE = 'test'
+connstr = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(
+USER, PASSWORD, HOST, PORT, DATABASE
+)
+engine = create_engine(connstr, echo=True)
+# 创建基类
+Base = declarative_base()
+# 创建实体类
+class Student(Base):
+  # 指定表名
+  __tablename__ = 'student'
+  # 定义属性对应字段
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  name = Column(String(64), nullable=False)
+  age = Column(Integer)
+
+  def __repr__(self):
+    return "<{} {} {} {}>".format(
+    self.__class__.__name__, self.id, self.name, self.age
+    )
+# 删除表
+Base.metadata.drop_all(engine)
+# 创建表
+Base.metadata.create_all(engine)
+# 创建session
+Session = sessionmaker(bind=engine)
+session = Session()
+
+s = Student(name='tom') # 构造时传入s.age = 20 # 属性赋值
+print(s)
+session.add(s)
+print(s)
+session.commit()
+print(s)
+print('~~~~~~~~~~~')
+try:
+  session.add_all([s])
+  print(s)
+  session.commit() # 提交能成功吗?
+  print(s)
+except:
+  session.rollback()
+  print('roll back')
+  raise
+
+'''
+add_all()方法不会提交成功的,不是因为它不对,而是s,s成功提交后,s的主键就有了值,所以,只要s没有修改
+过,就认为没有改动。如下,s变化了,就可以提交修改了
+'''
+
+```
+
+## **<font color=Red> 查**Meta programming
+
+```python
+使用query()方法,返回一个Query对象
+students = session.query(Student) # 无条件
+print(students) # 无内容,惰性的
+for student in students:
+  print(student)
+  rint('~~~~~~~~~~~~~')
+student = session.query(Student).get(2) # 通过主键查询
+print(student)
+query方法将实体类传入,返回类的对象可迭代对象,这时候并不查询。迭代它就执行SQL来查询数据库,封装数
+据到指定类的实例。
+get方法使用主键查询,返回一条传入类的一个实例
+```
 
 ```python
 import sqlalchemy
@@ -1166,7 +1243,6 @@ print(engine)
 
 #ORM Mapping
 Base = declarative_base()
-
 
 class Student(Base):
 
@@ -1340,7 +1416,7 @@ except:
 
 
 
-### **<font color=Red> 状态****
+## **<font color=Red> 状态****
 
 
 
@@ -1355,6 +1431,7 @@ except:
 | detacheddetached     | 删除成功的实体进入这个状态                                                                                                           |                     |                                                                                                                                      |
 
 ```python
+'''
 新建一个实体,状态是transient临时的。
 一旦add()后从transient变成pending状态。
 成功commit()后从pending变成persistent状态。
@@ -1363,6 +1440,7 @@ persistent状态的实体,修改依然是persistent状态。
 persistent状态的实体,删除后,flush后但没有commit,就变成deteled状态,成功提交,变为detached状态,
 提交失败,还原到persistent状态。flush方法,主动把改变应用到数据库中去。
 删除、修改操作,需要对应一个真实的记录,所以要求实体对象是persistent状态。
+'''
 
 
 import sqlalchemy
@@ -2042,7 +2120,7 @@ print(emps.first())
 
 ```
 
-### **<font color=Red> 关联查询*
+### **<font color=Red> 关联查询**
 
 ```python
 import sqlalchemy
@@ -2171,6 +2249,145 @@ CREATE TABLE dept_emp1 (
 	FOREIGN KEY(emp_no) REFERENCES employees1 (emp_no) ON DELETE CASCADE,
 	FOREIGN KEY(dept_no) REFERENCES departments1 (dept_no) ON DELETE CASCADE
 )
+
+
 '''
+
+```
+### **<font color=Red>join**
+
+```python
+import sqlalchemy
+from sqlalchemy import create_engine, Column, String, Integer,Date,Enum,ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker,relationship
+
+# "mysql+pymysql://username:password@ip:port/dbname"
+
+IP = '192.168.6.2'
+USERNAME = 'joey'
+PASSWORD = 'joey'
+DBNAME = 'test'
+PORT = 3306
+
+engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}".format(USERNAME, PASSWORD, IP, PORT, DBNAME),
+                       echo=True)  # lazy
+print(engine)
+# print(Student.__dict__)
+# print(Student.__table__)
+# print(repr(Student.__table__))
+
+
+##################################################################################
+
+# ORM Mapping
+Base = declarative_base()
+import enum
+class GenderEnum(enum.Enum):
+    M = 'M'
+    F = 'F'
+
+
+# class Student(Base):
+#
+#     __tablename__ = 'student'
+#
+#     id = Column(Integer, primary_key=True, autoincrement=True)  # 定义字段类型和属性
+#     name = Column(String(64), nullable=False)
+#     age = Column(Integer)
+#
+#     def __repr__(self):
+#         return "{} id ={},name={},age={}".format(
+#
+#             __class__.__name__, self.id, self.name, self.age
+#         )
+
+
+class Employee(Base):
+
+    __tablename__ = 'employees'
+
+    emp_no = Column(Integer,primary_key=True)
+    birth_date = Column(Date,nullable=False)
+    first_name = Column(String(14),nullable=False)
+    last_name = Column(String(16),nullable=False)
+    gender = Column(Enum(GenderEnum),nullable=False)
+    hire_date = Column(Date,nullable=False)
+
+    departments = relationship('Dept_emp')
+
+    def __repr__(self):
+        return "<{} no ={},birth_date={},first_name={},last_name={},gender={},hird_date={},departments={}>".format(
+            __class__.__name__, self.emp_no, self.birth_date, self.first_name,self.last_name,self.gender.value,self.hire_date,self.departments
+        )
+
+
+class Departments(Base):
+
+    __tablename__ = 'departments'
+
+    dept_no = Column(String(4),primary_key=True)
+    dept_name = Column(String(40),nullable=False,unique=True)
+
+    def __repr__(self):
+        return "<{} dept_no ={},dept_name={}>".format(
+            __class__.__name__, self.dept_no, self.dept_name
+        )
+
+
+class Dept_emp(Base):
+    __tablename__ = 'dept_emp'
+
+    emp_no = Column(Integer,ForeignKey('employees.emp_no',ondelete='CASCADE'), primary_key=True)
+    dept_no = Column(String(4),ForeignKey('departments.dept_no',ondelete='CASCADE'), primary_key=True)
+    from_date = Column(Date, nullable=False)
+    to_date = Column(Date, nullable=False)
+
+    def __repr__(self):
+        return "<{} emp_no ={},dept_no={},>".format(
+            __class__.__name__, self.emp_no, self.dept_no
+        )
+
+from sqlalchemy.orm.session import Session
+
+session: Session = sessionmaker(bind=engine)()
+
+def show(emps):
+    for i in emps:
+        print(i)
+    print(end='\n\n')
+
+#隐式连接
+# emps = session.query(Employee,Dept_emp).filter(Employee.emp_no == Dept_emp.emp_no).filter(Employee.emp_no ==10010)
+# show(emps)
+# (<Employee no =10010,birth_date=1963-06-01,first_name=Duangkaew,last_name=Piveteau,gender=F,hird_date=1989-08-24>, <Dept_emp emp_no =10010,dept_no=d004,>)
+# (<Employee no =10010,birth_date=1963-06-01,first_name=Duangkaew,last_name=Piveteau,gender=F,hird_date=1989-08-24>, <Dept_emp emp_no =10010,dept_no=d006,>)
+# emps = session.query(Employee).join(Dept_emp).filter(Employee.emp_no==10010)
+# show(emps)
+
+# emps = session.query(Employee).join(Dept_emp,Employee.emp_no == Dept_emp.emp_no).filter(Employee.emp_no==10010)
+# show(emps)
+#emps = session.query(Employee).join(Dept_emp,(Employee.emp_no == Dept_emp.emp_no)&(Employee.emp_no==10010))
+emps = session.query(Employee).filter(Employee.emp_no==10010)
+show(emps)
+x= emps.first()
+print(type(x),x.emp_no,x)
+print(x)
+# print(("-------------------------------------"))
+# print(x.departments)
+
+
+# emps = session.query(Employee,Dept_emp).join(Dept_emp,(Employee.emp_no == Dept_emp.emp_no)&(Employee.emp_no==10010))
+# show(emps)
+#返回结果
+# (<Employee no =10010,birth_date=1963-06-01,first_name=Duangkaew,last_name=Piveteau,gender=F,hird_date=1989-08-24>, <Dept_emp emp_no =10010,dept_no=d004,>)
+# (<Employee no =10010,birth_date=1963-06-01,first_name=Duangkaew,last_name=Piveteau,gender=F,hird_date=1989-08-24>, <Dept_emp emp_no =10010,dept_no=d006,>
+
+# emps = session.query(Employee.emp_no,Dept_emp.dept_no).join(Dept_emp,(Employee.emp_no == Dept_emp.emp_no)&(Employee.emp_no==10010))
+# show(emps)
+#返回结果
+# (10010, 'd004')
+# (10010, 'd006')
+
 
 ```
