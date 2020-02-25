@@ -1613,7 +1613,9 @@ getstate(student,1)
 # _attached=True,transient=False,pending=False
 # persistent=True,deleted=False,detached:False
 ```
-### **<font color=Red> 复杂查询**
+
+##  **<font color=Red> 复杂查询**
+
 ```python
 #查询所有的ｒｅｃｏｒｄ
 emps = session.query(Employee)
