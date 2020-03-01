@@ -290,42 +290,43 @@ Redis(2)
 				INFO [section]
 
 	Redis的持久化:
-		RDB：snapshotting, 二进制格式；按事先定制的策略，周期性地将数据从内存同步至磁盘；数据文件默认为dump.rdb；
-			客户端显式使用SAVE或BGSAVE命令来手动启动快照保存机制；
-				SAVE：同步，即在主线程中保存快照，此时会阻塞所有客户端请求；
-				BGSAVE：异步；
-		AOF：Append Only File, fsync
-			记录每次写操作至指定的文件尾部实现的持久化；当redis重启时，可通过重新执行文件中的命令在内存中重建出数据库；
-				BGREWRITEAOF：AOF文件重写；
-					不会读取正在使用AOF文件，而是通过将内存中的数据以命令的方式保存至临时文件中，完成之后替换原来的AOF文件；
 
-		RDB相关的配置：
-			*save <seconds> <changes>
+RDB：snapshotting, 二进制格式；按事先定制的策略，周期性地将数据从内存同步至磁盘；数据文件默认为dump.rdb；
+	客户端显式使用SAVE或BGSAVE命令来手动启动快照保存机制；
+		SAVE：同步，即在主线程中保存快照，此时会阻塞所有客户端请求；
+		BGSAVE：异步；
+AOF：Append Only File, fsync
+	记录每次写操作至指定的文件尾部实现的持久化；当redis重启时，可通过重新执行文件中的命令在内存中重建出数据库；
+		BGREWRITEAOF：AOF文件重写；
+		不会读取正在使用AOF文件，而是通过将内存中的数据以命令的方式保存至临时文件中，完成之后替换原来的AOF文件；
 
-				save 900 1
-				save 300 10
-				save 60 10000
+RDB相关的配置：
+	*save <seconds> <changes>
 
-				表示：三个策略满足其中任意一个均会触发SNAPSHOTTING操作；900s内至少有一个key有变化，300s内至少有10个key有变化，60s内至少有1W个key发生变化；
+	save 900 1
+	save 300 10
+	save 60 10000
 
-			stop-writes-on-bgsave-error yes
-				dump操作出现错误时，是否禁止新的写入操作请求；
+	表示：三个策略满足其中任意一个均会触发SNAPSHOTTING操作；900s内至少有一个key有变化，300s内至少有10个key有变化，60s内至少有1W个key发生变化；
 
-			rdbcompression yes
-			rdbchecksum yes
+	stop-writes-on-bgsave-error yes
+	dump操作出现错误时，是否禁止新的写入操作请求；
 
-			dbfilename dump.rdb：指定rdb文件名
-			*dir /var/lib/redis：rdb文件的存储路径
+  rdbcompression yes
+  rdbchecksum yes
 
-		AOF相关的配置
-			*appendonly no
-			appendfilename "appendonly.aof"
+	dbfilename dump.rdb：指定rdb文件名
+	*dir /var/lib/redis：rdb文件的存储路径
 
-			*appendfsync
-				Redis supports three different modes:
-					no：redis不执行主动同步操作，而是OS进行；
-					everysec：每秒一次；
-					always：每语句一次；
+ AOF相关的配置
+	*appendonly no
+	appendfilename "appendonly.aof"
+
+	*appendfsync
+		Redis supports three different modes:
+			no：redis不执行主动同步操作，而是OS进行；
+			everysec：每秒一次；
+			always：每语句一次；
 
 			no-appendfsync-on-rewrite no
 				是否在后台执行aof重写期间不调用fsync，默认为no，表示调用；
@@ -338,9 +339,9 @@ Redis(2)
 
 		注意：持久机制本身不能取代备份；应该制订备份策略，对redis库定期备份；
 
-		RDB与AOF同时启用：
-			(1) BGSAVE和BGREWRITEAOF不会同时进行；
-			(2) Redis服务器启动时用持久化的数据文件恢复数据，会优先使用AOF；
+RDB与AOF同时启用：
+	(1) BGSAVE和BGREWRITEAOF不会同时进行；
+	(2) Redis服务器启动时用持久化的数据文件恢复数据，会优先使用AOF；
 
 	复制：
 		特点：
@@ -360,9 +361,9 @@ Redis(2)
 			*repl-diskless-sync no
 				no, Disk-backed, Diskless
 
-				新的从节点或某较长时间未能与主节点进行同步的从节点重新与主节点通信，需要做“full synchronization"，此时其同步方式有两种style：
-					Disk-backend：主节点新创建快照文件于磁盘中，而后将其发送给从节点；
-					Diskless：主节占新创建快照后直接通过网络套接字文件发送给从节点；为了实现并行复制，通常需要在复制启动前延迟一个时间段；
+		新的从节点或某较长时间未能与主节点进行同步的从节点重新与主节点通信，需要做“full synchronization"，此时其同步方式有两种style：
+		Disk-backend：主节点新创建快照文件于磁盘中，而后将其发送给从节点；
+		Diskless：主节占新创建快照后直接通过网络套接字文件发送给从节点；为了实现并行复制，通常需要在复制启动前延迟一个时间段；
 
 			repl-diskless-sync-delay 5
 			repl-ping-slave-period 10
