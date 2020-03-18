@@ -314,7 +314,7 @@ class Persion:
         # return random.randint(1,100)
         return 123
 
-    __hash__ = None
+    __hash__ = None --哈希函数为none 　不可哈希
 
 #最简单的hash 就是取摸反 1%5
 a = Persion("tom",10) # __new__ 返回实例 交给__init__进行初始化
@@ -406,7 +406,8 @@ print({p1,p2})
 
 ```python
 ’‘’
-如果一个实例可以用 bool 函数 要用__bool__如果没有__bool__方法，就判断 __len__方法
+如果一个实例可以用 bool 函数 要用　__bool__
+如果没有　__bool__　方法，就判断 __len__　方法
 
 ‘’’
 class A:
@@ -833,8 +834,7 @@ class Point:
         print(5, " exit~~~~~~~~~~~~~")
         time.sleep(3)
 
-#with 是　进入with快调用witｈ后面的实例(Point())的__enter__
-#　离开是调用witｈ后面的实例(Point())的__exit__
+with 是　进入with快调用witｈ后面的实例(Point())的__enter__ 离开是调用witｈ后面的实例(Point())的__exit__
 
 with Point() as p: #  b = self.__enter__()__ 返回值是自己的self_
     print(3, "enter with ~~~~~~~~~~~~~~")
@@ -842,7 +842,6 @@ with Point() as p: #  b = self.__enter__()__ 返回值是自己的self_
     time.sleep(3)
     print(4, "exit with ~~~~~~~~~~~~~~")
 
-'''
 p = Point()
 with p as f:
   print('in with-------------')
@@ -850,10 +849,9 @@ with p as f:
   print('with over')
   print('=======end==========')
 with语法,会调用with后的对象的__enter__方法,如果有as,则将该方法的返回值赋给as子句的变量上例,可以等价为f = p.__enter__()
-‘’‘
 
-#执行顺序
-'''
+执行顺序
+
 /home/joey/python/code/venv/bin/python /home/joey/python/code/t1.py
 1 init~~~~~~~~~~~~~~
 2 enter~~~~~~~~~~~~~~
@@ -862,10 +860,9 @@ with语法,会调用with后的对象的__enter__方法,如果有as,则将该方�
 5  exit~~~~~~~~~~~~~
 
 Process finished with exit code 0
+```
 
-'''
-
-```pythoh
+```python
 import time
 class Point:
 
@@ -1036,9 +1033,9 @@ print(add(4, 5))
 print(callable(add) ,callable(Timeit),callable(Timeit(add)))
 
 callable ----就是是标识符后面可以添加()
-1 　函数可调用　
-２　类本身就是可以实例化，当然可调用
-３　Timeit(add)　实例有__call__方法，也可以掉用
+ 1　函数可调用　
+ ２　类本身就是可以实例化，当然可调用
+ ３　Timeit(add)　实例有__call__方法，也可以掉用
 ```
 
 
@@ -1079,6 +1076,8 @@ print(add(4, 5))
 print(add.__doc__)
 print(add.__name__)
 print(callable(add) ,callable(Timeit),callable(Timeit(add)))
+
+
 ```
 
 ## **上下文应用场景**

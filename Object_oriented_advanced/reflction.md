@@ -10,9 +10,6 @@
 
 
 ```python
-
-
-
 class Point:
 
     def __init__(self, x, y):
@@ -148,6 +145,7 @@ __getattr__(self, item):# 实例访问属的时候，找不到的时候Attribute
 
 实例访问方属性顺序。实例－类－夫类-object　如果还没有找到，则查看__getattr__有没有配置，有的话，怎访问次方法，没有怎报AttributeError
 
+只要是通过实例(self.)来设置属性或者 setattｒ设置属性，都要经过__setattr__()_
 __setattr__(self, key, value):　只要对实例进行属性设置　就必须先调用__setattr__函数.连初始化函数__init__ 也一样
 '''
 class Base:
@@ -176,7 +174,7 @@ class Point(Base):
         self.__dict__[item] = 1000
         return self.__dict__[item]
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key, value):#
         #print("__setattr__ ~~~~~~~~~~~~~~~~~", key, value)
         #super().__setattr__(key, value)
         self.__dict__[key] =value
@@ -253,7 +251,11 @@ print(p1.__dict__)
 
 ```
 
-
+| 参数名称   |                                     含义                                      |
+|:---------- |:-----------------------------------------------------------------------------:|
+| __getattr__()|当通过搜索实例、实例的类及祖先类查不到属性,就会调用此方法 |
+| __setattr__()  |                通过 . 访问实例属性,进行增加、修改都要调用它                               |
+|    __getattribute__        | 实例所有的属性调用都从这个方法开始|
 
 
 1. __getattr__() 当通过搜索实例、实例的类及祖先类查不到属性,就会调用此方法
@@ -262,4 +264,5 @@ print(p1.__dict__)
 4. __getattribute__ 实例所有的属性调用都从这个方法开始
 
 - 属性查找顺序:
- - 实例调用__getattribute__() --> instance.__dict__ --> instance.__class__.__dict__ --> 继承的祖先类(直到object)的__dict__ --> 调用__getattr__()
+
+ - 实例调用__getattribute__() --> instance.__dict__ --> instance.__class__.__dict__ --> 继承的祖先类(直到object)的__dict__ --> (找不到的情况下)调用__getattr__()

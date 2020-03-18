@@ -1,6 +1,10 @@
 # **<font color=Red> Docker**
 
 
+- 梳理linux kernel 的namespace和cgoups
+- 梳理docker进程和容器的进程的关系
+- 熟悉docker的操作命令
+
 | 隔离类型        |    功能  |　系统调用参数|内核版本|
 | :------------ |:---------------:|:------------ |:---------------:|
 | MNT Namespace(mount)    |提供磁盘挂载点和文件系统的隔离能力 |CLONE_NEWNS|Linux 2.4.19|
@@ -393,15 +397,42 @@ docker run -p 86:80/tcp -p 443:443/tcp -p 53:53/udp --name nginx-test-port5 dock
 后台启动容器：
 [root@docker-server1 ~]# docker run -d -P --name nginx-test1 docker.io/nginx
 
+
 创建并进入容器：
-[root@docker-server1 ~]# docker run -t -i --name test-centos2 docker.io/centos /bin/bash
+    [root@docker-server1 ~]# docker run -t -i --name test-centos2 docker.io/centos /bin/bash
+
+    使用 nsenter 命令:
+    推荐使用此方式,nsenter 命令需要通过 PID 进入到容器内部,不过可以使用
+    docker inspect 获取到容器的 PID:
+    [root@docker-server1 ~]# yum install util-linux #安装 nsenter 命令
+    [root@docker-server1 ~]# docker inspect -f "{{.NetworkSettings.IPAddress}}" 91fc190cb538
+    172.17.0.2
+    [root@docker-server1 ~]# docker inspect -f "{{.State.Pid}}" mydocker
+    #获取到某个
+    docker 容器的 PID,可以通过 PID 进入到容器内
+    [root@docker-server1 ~]#
+    docker inspect -f "{{.State.Pid}}" centos-test3
+
+
+
+    脚本方式
+    将 nsenter 命令写入到脚本进行调用,如下
+    #!/bin/bash
+    docker_in(){
+      NAME_ID=$1
+      PID=$(docker inspect -f "{{.State.Pid}}" ${NAME_ID})
+      nsenter -t ${PID} -m -u -i -n -p
+    }
+    docker_in $1
 
 批量删除已退出容器
- docker rm -f `docker ps -aq -f status=exited`
+  docker rm -f `docker ps -aq -f status=exited`
 批量强制关闭正在运行的容器：
-docker kill $(docker ps -a -q) #强制关闭所有运行中容器
+    docker kill $(docker ps -a -q) #强制关闭所有运行中容器
 批量关闭正在运行的容器：
-docker stop $(docker ps -a -q) #正常关闭所有运行中的容器
+    docker stop $(docker ps -a -q) #正常关闭所有运行中的容器
+批量删除所有容器:
+    [root@docker-server1 ~]# docker rm -f　$(docker ps -a -q)
 
 指定容器 DNS：
 Dns 服务，默认采用宿主机的 dns 地址
@@ -414,3 +445,46 @@ nameserver 223.6.6.6
 
 
  ```
+
+
+
+## **<font color=Red>Docker 镜像与制作**
+
+### **<font color=Red>手动制作编译版本 nginx 镜像**
+
+```
+
+root@docker-server1 ~]# docker pull centos
+[root@docker-server1 ~]# docker run -it docker.io/centos /bin/bash
+[root@86a48908bb97 /]# yum install wget-y
+[root@86a48908bb97 /]# cd /etc/yum.repos.d/
+[root@86a48908bb97 yum.repos.d]# rm -rf ./* #更改 yum 源
+[root@86a48908bb97 yum.repos.d]# wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+[root@86a48908bb97yum.repos.d]# wget http://mirrors.aliyun.com/repo/epel-7.repo
+
+
+
+提交为镜像:
+[root@docker-server1 ~]# docker commit -m "test nginx" 86a48908bb97 jack/nginx-test-image
+
+root@k8s-node4:/opt/nginx/nginx# docker commit --help
+Usage:  docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
+Create a new image from a container's changes
+
+Options:
+  -a, --author string    Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+  -c, --change list      Apply Dockerfile instruction to the created image
+  -m, --message string   Commit message
+  -p, --pause            Pause container during commit (default true)
+root@k8s-node4:/opt/nginx/nginx#
+
+
+rm -fr /etc/localtime
+ln -sv /usr/share/zoninfo/Asia/Shanghai /etc/localtime
+
+```
+## **<font color=Red>时区**
+```
+rm -fr /etc/localtime
+ln -sv /usr/share/zoninfo/Asia/Shanghai /etc/localtime
+```
