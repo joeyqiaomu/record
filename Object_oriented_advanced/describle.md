@@ -1,4 +1,4 @@
-# **描述器**
+#　**<font color=Red>描述器**
 
 - 方法签名如下
   - object.__get__(self, instance, owner)
@@ -16,14 +16,12 @@
 
 ```python
 
-
-
 class A:#描述器
     def __init__(self):
         self.a1 = 'a1'
         print('A.init')
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, owner):# instance 是　owner的实例
         print("get~~~~",self, instance, owner)
         print(self.__dict__)
         return  self
@@ -77,9 +75,9 @@ instance 说明
 ```
 
 ##  **<font color=Red> 描述器只能用于类属性，跟属主的类属性有关**
+
+
 ```python
-
-
 
 class A:#描述器
     def __init__(self):
@@ -129,14 +127,19 @@ Process finished with exit code 0
 ```
 
 ## **<font color=Red>描述器定义**
-- Python中,一个类实现了 __get__ 、 __set__ 、 __delete__ 三个方法中的任何一个方法,就是描述器。实现这三个中的某些方法,就支持了描述器协议。
-- 仅实现了 __get__ [______get____],就是**非数据描述符** __non-data descriptor__
-- 实现了 __get__  [______get____]、 __set__ [______set____] **就是数据描述符** __data descriptor__
+- Python中,一个类实现了 --get-- 、 --set-- 、 --delete--  三个方法中的任何一个方法,就是描述器。实现这三个中的某些方法,就支持了描述器协议。
+- 仅实现了 __get__ [--get--],就是**非数据描述符** __non-data descriptor__
+- 实现了 __get__  [--get--]、 __set__ [--set--] **就是数据描述符** __data descriptor__
 - 如果一个类的类属性设置为描述器实例,那么它被称为owner属主。当该类的该类属性被查找、设置、删除时,就会调用描述器相应的方法。
 
+## **<font color=Red>属性的访问的顺序**
+
+```
 
 
-## **描述器应用**
+```
+
+## **<font color=Red>描述器应用**
 
 ```python
 from _functools import partial,wraps,update_wrapper
